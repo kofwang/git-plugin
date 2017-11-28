@@ -9,6 +9,7 @@ import hudson.plugins.git.extensions.GitClientType;
 import hudson.plugins.git.extensions.GitSCMExtension;
 import hudson.plugins.git.extensions.GitSCMExtensionDescriptor;
 import java.io.IOException;
+import java.io.File;
 import java.util.List;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.RemoteConfig;
@@ -37,21 +38,21 @@ public class CloneEFS extends GitSCMExtension {
      * {@inheritDoc}
      */
     @Override
-    public GitClient decorate(GitSCM scm, GitClient git) throws IOException, InterruptedException, GitException {
-        String remoteUrl = git.getRemoteUrl("origin");
-
-        return git;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public void decorateCloneCommand(GitSCM scm, Run<?, ?> build, GitClient git, TaskListener listener, CloneCommand cmd) throws IOException, InterruptedException, GitException {
         if (enable) {
             listener.getLogger().println("Setting repo remote to be from EFS");
-            String remoteUrl = git.getRemoteUrl("origin");
+            RemoteConfig rc = scm.getRepositories().get(0);
+            String remoteUrl = rc.getURIs().get(0).toPrivateString();
             listener.getLogger().println(remoteUrl);
+            if (remoteUrl.contains("git.dev.fwmrm.net")) {
+                String efsUrl = remoteUrl.replaceAll("^.*git.dev.fwmrm.net", "/data1/efs/git_repo").replace(".git", "/.git");
+                File f = new File(efsUrl);
+                if (f.isDirectory()) {
+                    cmd.url(efsUrl);
+                } else {
+                    listener.getLogger().println(efsUrl + " does not exist, go cloning from remote repo");
+                }
+            }
         }
     }
 
